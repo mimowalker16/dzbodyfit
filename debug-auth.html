@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Auth State</title>
+    <script src="https://unpkg.com/js-cookie@3.0.1/dist/js.cookie.min.js"></script>
+</head>
+<body>
+    <h1>Auth Debug</h1>
+    <div id="output"></div>
+
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(message) {
+            output.innerHTML += '<p>' + message + '</p>';
+            console.log(message);
+        }
+        
+        // Check localStorage
+        log('=== LocalStorage ===');
+        log('auth.user: ' + localStorage.getItem('auth.user'));
+        log('auth.isAuthenticated: ' + localStorage.getItem('auth.isAuthenticated'));
+        log('user (legacy): ' + localStorage.getItem('user'));
+        log('loggedIn (legacy): ' + localStorage.getItem('loggedIn'));
+        
+        // Check cookies
+        log('=== Cookies ===');
+        log('authToken: ' + Cookies.get('authToken'));
+        log('refreshToken: ' + Cookies.get('refreshToken'));
+        
+        // Check if API is reachable
+        log('=== API Test ===');
+        fetch('http://localhost:3001/api/health')
+            .then(response => response.json())
+            .then(data => {
+                log('API Health: ' + JSON.stringify(data));
+            })
+            .catch(error => {
+                log('API Error: ' + error.message);
+            });
+            
+        // Test basic auth endpoint
+        fetch('http://localhost:3001/api/auth/me', {
+            credentials: 'include'
+        })
+            .then(response => {
+                log('Auth check status: ' + response.status);
+                return response.json();
+            })
+            .then(data => {
+                log('Auth check response: ' + JSON.stringify(data));
+            })
+            .catch(error => {
+                log('Auth check error: ' + error.message);
+            });
+    </script>
+</body>
+</html>

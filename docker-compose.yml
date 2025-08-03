@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # Redis for caching and sessions
+  redis:
+    image: redis:7-alpine
+    container_name: ri-gym-pro-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+
+  # PostgreSQL (if not using Supabase)
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: ri-gym-pro-postgres
+  #   restart: unless-stopped
+  #   ports:
+  #     - "5432:5432"
+  #   environment:
+  #     POSTGRES_DB: ri_gym_pro
+  #     POSTGRES_USER: ${DB_USER:-postgres}
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./src/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+
+  # Node.js API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ri-gym-pro-api
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=${PORT:-3000}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+    depends_on:
+      - redis
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run dev
+
+volumes:
+  redis_data:
+  # postgres_data:

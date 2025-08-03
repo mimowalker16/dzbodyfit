@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Auth Debug</title>
+    <script src="https://unpkg.com/js-cookie@3.0.1/dist/js.cookie.min.js"></script>
+</head>
+<body>
+    <h1>Admin Authentication Debug</h1>
+    <div id="output"></div>
+    <button onclick="testAdminAuth()">Test Admin Auth</button>
+    <button onclick="loginAsAdmin()">Login as Admin</button>
+
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(message) {
+            output.innerHTML += '<p>' + message + '</p>';
+            console.log(message);
+        }
+        
+        function testAdminAuth() {
+            output.innerHTML = '';
+            
+            // Check localStorage
+            log('=== Auth State ===');
+            log('authToken cookie: ' + Cookies.get('authToken'));
+            log('localStorage auth.user: ' + localStorage.getItem('auth.user'));
+            log('localStorage auth.isAuthenticated: ' + localStorage.getItem('auth.isAuthenticated'));
+            
+            // Test API call
+            const token = Cookies.get('authToken');
+            if (token) {
+                fetch('http://localhost:3001/api/auth/me', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    log('=== API Response ===');
+                    log('Auth Me Response: ' + JSON.stringify(data, null, 2));
+                })
+                .catch(error => {
+                    log('Auth Me Error: ' + error.message);
+                });
+            } else {
+                log('No auth token found');
+            }
+        }
+        
+        function loginAsAdmin() {
+            output.innerHTML = '';
+            log('Attempting admin login...');
+            
+            fetch('http://localhost:3001/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    email: 'admin@ri.gym.pro',
+                    password: 'admin123'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                log('Login Response: ' + JSON.stringify(data, null, 2));
+                if (data.tokens && data.tokens.accessToken) {
+                    Cookies.set('authToken', data.tokens.accessToken, { expires: 7 });
+                    log('Token set in cookies');
+                }
+            })
+            .catch(error => {
+                log('Login Error: ' + error.message);
+            });
+        }
+        
+        // Auto-run on load
+        testAdminAuth();
+    </script>
+</body>
+</html>
