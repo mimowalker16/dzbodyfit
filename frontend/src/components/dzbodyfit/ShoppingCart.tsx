@@ -18,22 +18,13 @@ import {
   ArrowRight,
   Gift
 } from 'lucide-react';
-import { Product } from './ProductCard';
 import Image from 'next/image';
-
-export interface CartItem extends Product {
-  quantity: number;
-  addedAt: Date;
-}
+import { useCart } from '@/contexts/CartContext';
+import { useRouter } from 'next/router';
 
 interface ShoppingCartProps {
-  items: CartItem[];
   isOpen: boolean;
   onClose: () => void;
-  onUpdateQuantity: (itemId: string, quantity: number) => void;
-  onRemoveItem: (itemId: string) => void;
-  onCheckout: () => void;
-  onClearCart: () => void;
   className?: string;
 }
 
@@ -76,40 +67,53 @@ const emptyCartVariants = {
 };
 
 export function ShoppingCart({
-  items,
   isOpen,
   onClose,
-  onUpdateQuantity,
-  onRemoveItem,
-  onCheckout,
-  onClearCart,
   className = ''
 }: ShoppingCartProps) {
+  const { 
+    cart, 
+    loading, 
+    error, 
+    updateQuantity, 
+    removeItem, 
+    clearCart, 
+    itemCount, 
+    subtotal 
+  } = useCart();
+  
   const [isProcessing, setIsProcessing] = useState(false);
+  const router = useRouter();
 
   const formatPrice = (price: number, currency: string = 'DZD') => {
     return `${price.toLocaleString()} ${currency}`;
   };
 
-  const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const items = cart?.items || [];
   const deliveryFee = subtotal > 5000 ? 0 : 500; // Free delivery over 5000 DZD
   const total = subtotal + deliveryFee;
-  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleCheckout = async () => {
     setIsProcessing(true);
     // Simulate processing
     await new Promise(resolve => setTimeout(resolve, 1000));
-    onCheckout();
+    
+    // Navigate to checkout page
+    router.push('/checkout');
     setIsProcessing(false);
+    onClose();
   };
 
-  const handleQuantityChange = (itemId: string, newQuantity: number) => {
+  const handleQuantityChange = async (itemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
-      onRemoveItem(itemId);
+      await removeItem(itemId);
     } else {
-      onUpdateQuantity(itemId, newQuantity);
+      await updateQuantity(itemId, newQuantity);
     }
+  };
+
+  const handleClearCart = async () => {
+    await clearCart();
   };
 
   return (
@@ -203,8 +207,8 @@ export function ShoppingCart({
                             {/* Product Image */}
                             <div className="relative w-16 h-16 flex-shrink-0">
                               <Image
-                                src={item.images[0] || '/placeholder-product.jpg'}
-                                alt={item.name}
+                                src={item.product.images?.[0] || '/placeholder-product.jpg'}
+                                alt={item.product.name}
                                 fill
                                 className="object-cover rounded-lg"
                                 sizes="64px"
@@ -216,16 +220,16 @@ export function ShoppingCart({
                               <div className="flex justify-between items-start mb-2">
                                 <div>
                                   <h4 className="font-semibold text-dzbodyfit-black text-sm line-clamp-1">
-                                    {item.name}
+                                    {item.product.name}
                                   </h4>
                                   <p className="text-xs text-dzbodyfit-gray-dark">
-                                    {item.brand}
+                                    SKU: {item.product.sku || 'N/A'}
                                   </p>
                                 </div>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => onRemoveItem(item.id)}
+                                  onClick={() => removeItem(item.id)}
                                   className="text-dzbodyfit-gray-dark hover:text-red-500 p-1"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -260,11 +264,11 @@ export function ShoppingCart({
 
                                 <div className="text-right">
                                   <div className="font-bold text-dzbodyfit-black">
-                                    {formatPrice(item.price * item.quantity, item.currency)}
+                                    {formatPrice(item.subtotal)}
                                   </div>
                                   {item.quantity > 1 && (
                                     <div className="text-xs text-dzbodyfit-gray-dark">
-                                      {formatPrice(item.price, item.currency)} each
+                                      {formatPrice(item.unitPrice)} each
                                     </div>
                                   )}
                                 </div>
@@ -369,7 +373,7 @@ export function ShoppingCart({
                     </Button>
                     <Button
                       variant="outline"
-                      onClick={onClearCart}
+                      onClick={handleClearCart}
                       className="border-red-200 text-red-600 hover:bg-red-50"
                     >
                       <Trash2 className="w-4 h-4" />
